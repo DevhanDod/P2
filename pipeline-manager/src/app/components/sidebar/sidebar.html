@@ -1,0 +1,45 @@
+<aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+  <div class="sidebar-header">
+    <div class="logo-section">
+      <span class="material-symbols-outlined logo-icon">rocket_launch</span>
+      @if (!sidebarCollapsed) {
+        <span class="logo-text">Pipeline Manager</span>
+      }
+    </div>
+    <button class="toggle-btn" (click)="toggleSidebar()">
+      <span class="material-symbols-outlined">
+        {{ sidebarCollapsed ? 'chevron_right' : 'chevron_left' }}
+      </span>
+    </button>
+  </div>
+
+  <nav class="nav-menu">
+    @for (item of navItems; track item.route) {
+      <a
+        class="nav-item"
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        [title]="item.label"
+      >
+        <span class="material-symbols-outlined nav-icon">{{ item.icon }}</span>
+        @if (!sidebarCollapsed) {
+          <span class="nav-label">{{ item.label }}</span>
+        }
+      </a>
+    }
+  </nav>
+
+  <div class="sidebar-footer">
+    <a
+      class="nav-item profile-item"
+      [routerLink]="profileItem.route"
+      routerLinkActive="active"
+      [title]="profileItem.label"
+    >
+      <span class="material-symbols-outlined nav-icon">{{ profileItem.icon }}</span>
+      @if (!sidebarCollapsed) {
+        <span class="nav-label">{{ profileItem.label }}</span>
+      }
+    </a>
+  </div>
+</aside>

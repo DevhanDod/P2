@@ -1,0 +1,13 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--main-bg);
+  padding: 32px;
+  transition: background 0.3s ease;
+}

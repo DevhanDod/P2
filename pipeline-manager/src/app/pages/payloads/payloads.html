@@ -1,0 +1,203 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>Payloads</h1>
+        <p>Manage pipeline payloads for infrastructure deployment</p>
+      </div>
+      <button class="btn btn-primary" (click)="openAddModal()">
+        <span class="material-symbols-outlined">add</span>
+        Add Payload
+      </button>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Pipeline Payloads</h3>
+    <p class="section-desc">Click a pipeline to view or edit its payload</p>
+  </div>
+
+  <div class="pipelines-grid">
+    @for (pipeline of pipelines; track pipeline.id) {
+      <button class="pipeline-btn" (click)="openPayloadModal(pipeline)">
+        <div class="pipeline-btn-top">
+          <div class="pipeline-icon">
+            <span class="material-symbols-outlined">terminal</span>
+          </div>
+          <div class="token-indicator" [class.has-token]="hasToken(pipeline)" [class.no-token]="!hasToken(pipeline)">
+            @if (hasToken(pipeline)) {
+              <span class="material-symbols-outlined">check_circle</span>
+              <span>Token set</span>
+            } @else {
+              <span class="material-symbols-outlined">warning</span>
+              <span>No token</span>
+            }
+          </div>
+        </div>
+        <span class="pipeline-btn-name">{{ pipeline.name }}</span>
+        <span class="pipeline-btn-desc">{{ pipeline.description }}</span>
+        @if (!hasToken(pipeline)) {
+          <div class="token-warning">
+            <span class="material-symbols-outlined">info</span>
+            Add trigger token before running
+          </div>
+        }
+      </button>
+    }
+  </div>
+</div>
+
+<!-- Payload Viewer / Editor Modal -->
+@if (showPayloadModal && activePipeline) {
+  <div class="modal-overlay" (click)="closePayloadModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-section">
+          <h2>{{ activePipeline.name }}</h2>
+          <span class="modal-subtitle">{{ activePipeline.description }}</span>
+        </div>
+        <div class="modal-header-actions">
+          @if (!isEditing) {
+            <button class="btn btn-secondary btn-sm" (click)="startEditing()">
+              <span class="material-symbols-outlined">edit</span>
+              Edit
+            </button>
+          }
+          <button class="modal-close" (click)="closePayloadModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        @if (!isEditing) {
+          <!-- View Mode -->
+          <div class="payload-preview">
+            <div class="preview-header">
+              <span class="material-symbols-outlined">code</span>
+              <span>Payload</span>
+            </div>
+            <pre class="payload-code">{{ getPayloadPreview() }}</pre>
+          </div>
+        } @else {
+          <!-- Edit Mode -->
+          <div class="edit-form">
+            <div class="form-row token-row">
+              <div class="form-group">
+                <label>Trigger Token</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [(ngModel)]="editToken"
+                  placeholder="Enter your trigger token"
+                />
+                <span class="form-hint">This token identifies you when triggering pipelines</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Ref (Branch)</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  [(ngModel)]="editRef"
+                />
+              </div>
+            </div>
+
+            <div class="variables-section">
+              <div class="variables-header">
+                <label>Variables</label>
+                <button class="btn btn-secondary btn-xs" (click)="addVariable()">
+                  <span class="material-symbols-outlined">add</span>
+                  Add Variable
+                </button>
+              </div>
+              @for (variable of editVariables; track $index) {
+                <div class="variable-row" [class.commented]="variable.commented">
+                  <label class="comment-toggle" title="Toggle comment">
+                    <input type="checkbox" [(ngModel)]="variable.commented" />
+                    <span class="material-symbols-outlined">{{ variable.commented ? 'comments_disabled' : 'code' }}</span>
+                  </label>
+                  <input
+                    type="text"
+                    class="form-input var-key"
+                    [(ngModel)]="variable.key"
+                    placeholder="Variable key"
+                  />
+                  <input
+                    type="text"
+                    class="form-input var-value"
+                    [(ngModel)]="variable.value"
+                    placeholder="Value"
+                  />
+                  <button class="remove-var-btn" (click)="removeVariable($index)" title="Remove">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        @if (isEditing) {
+          <button class="btn btn-secondary" (click)="cancelEditing()">Cancel</button>
+          <button class="btn btn-primary" (click)="savePayload()">
+            <span class="material-symbols-outlined">save</span>
+            Save
+          </button>
+        } @else {
+          <button class="btn btn-secondary" (click)="closePayloadModal()">Close</button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Add Payload Modal -->
+@if (showAddModal) {
+  <div class="modal-overlay" (click)="closeAddModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Add Payload</h2>
+        <button class="modal-close" (click)="closeAddModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Pipeline Name</label>
+          <input
+            type="text"
+            class="form-input"
+            [(ngModel)]="newPipelineName"
+            placeholder="e.g. cld_custom"
+            autofocus
+            (keydown.enter)="addPipeline()"
+          />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input
+            type="text"
+            class="form-input"
+            [(ngModel)]="newPipelineDesc"
+            placeholder="What does this pipeline do?"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeAddModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="addPipeline()" [disabled]="!newPipelineName.trim()">
+          <span class="material-symbols-outlined">add</span>
+          Add
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,148 @@
+@if (track) {
+  <div class="page-container">
+    <div class="page-header">
+      <div class="header-row">
+        <div class="header-left">
+          <button class="back-btn" (click)="goBack()">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1>{{ track.name }}</h1>
+            <p>{{ track.versions.length }} track version{{ track.versions.length !== 1 ? 's' : '' }} configured</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-collab" (click)="openCollabModal()">
+            <span class="material-symbols-outlined">group_add</span>
+            Collaborate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (track.collaborators.length > 0) {
+      <div class="collab-bar">
+        <span class="material-symbols-outlined collab-bar-icon">people</span>
+        <span class="collab-bar-label">Shared with:</span>
+        @for (c of track.collaborators; track c.email) {
+          <span class="collab-chip">
+            {{ c.email }}
+            <button class="collab-chip-remove" (click)="removeCollaborator(c.email)">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </span>
+        }
+      </div>
+    }
+
+    <div class="versions-container">
+      @for (version of track.versions; track version.id) {
+        <div class="version-box" (click)="openVersion(version)">
+          <div class="version-header" (click)="$event.stopPropagation()">
+            <input
+              type="text"
+              class="version-name-input"
+              [value]="version.name"
+              (change)="onVersionNameChange(version, $any($event.target).value)"
+              (blur)="onVersionNameChange(version, $any($event.target).value)"
+            />
+            <div class="version-code-field">
+              <label>Customer Code</label>
+              <input
+                type="text"
+                class="version-code-input"
+                [value]="version.customerCode"
+                placeholder="e.g. C3lo"
+                (change)="onCustomerCodeChange(version, $any($event.target).value)"
+                (blur)="onCustomerCodeChange(version, $any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <div class="version-body">
+            <div class="version-info-row">
+              @if (version.customerCode) {
+                <span class="version-badge code">
+                  <span class="material-symbols-outlined">badge</span>
+                  {{ version.customerCode }}
+                </span>
+              }
+              <span class="version-badge">
+                <span class="material-symbols-outlined">terminal</span>
+                {{ version.features.length }} pipeline{{ version.features.length !== 1 ? 's' : '' }}
+              </span>
+              <span class="version-badge">
+                <span class="material-symbols-outlined">extension</span>
+                {{ version.enabledFeatures.length }} feature{{ version.enabledFeatures.length !== 1 ? 's' : '' }}
+              </span>
+            </div>
+            <div class="version-enter">
+              <span>Open version details</span>
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Collaborate Modal -->
+@if (showCollabModal) {
+  <div class="modal-overlay" (click)="closeCollabModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Collaborate</h2>
+        <button class="modal-close" (click)="closeCollabModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">Share this track with team members by email. They'll be able to view and contribute.</p>
+        <div class="collab-input-row">
+          <input
+            type="email"
+            class="form-input"
+            [(ngModel)]="collabEmail"
+            placeholder="Enter email address"
+            (keydown.enter)="addCollaborator()"
+          />
+          <button class="btn btn-primary" (click)="addCollaborator()" [disabled]="!collabEmail.trim()">
+            <span class="material-symbols-outlined">person_add</span>
+            Add
+          </button>
+        </div>
+
+        @if (track!.collaborators.length > 0) {
+          <div class="collab-list">
+            <h4 class="collab-list-title">Current Collaborators</h4>
+            @for (c of track!.collaborators; track c.email) {
+              <div class="collab-list-item">
+                <div class="collab-avatar">
+                  <span class="material-symbols-outlined">person</span>
+                </div>
+                <div class="collab-list-info">
+                  <span class="collab-list-email">{{ c.email }}</span>
+                  <span class="collab-list-date">Added {{ c.addedAt | date:'mediumDate' }}</span>
+                </div>
+                <button class="icon-btn remove" (click)="removeCollaborator(c.email)">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="collab-empty">
+            <span class="material-symbols-outlined">group</span>
+            <p>No collaborators added yet</p>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeCollabModal()">Close</button>
+      </div>
+    </div>
+  </div>
+}

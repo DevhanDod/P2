@@ -1,0 +1,96 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Profile</h1>
+    <p>Manage your account settings and preferences</p>
+  </div>
+
+  <div class="profile-card card">
+    <div class="profile-header">
+      <div class="avatar">
+        <span class="material-symbols-outlined">person</span>
+      </div>
+      <div class="profile-info">
+        <h2>Pipeline Admin</h2>
+        <p>admin&#64;pipeline-manager.io</p>
+      </div>
+    </div>
+
+    <div class="profile-details">
+      <div class="detail-row">
+        <span class="detail-label">Role</span>
+        <span class="badge badge-info">Administrator</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Team</span>
+        <span class="detail-value">Infrastructure</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Last Login</span>
+        <span class="detail-value">Today at 9:42 AM</span>
+      </div>
+    </div>
+
+    <div class="profile-actions">
+      <button class="btn btn-secondary">
+        <span class="material-symbols-outlined">edit</span>
+        Edit Profile
+      </button>
+      <button class="btn btn-secondary">
+        <span class="material-symbols-outlined">settings</span>
+        Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Appearance Section -->
+  <div class="section-card card">
+    <div class="section-card-header">
+      <span class="material-symbols-outlined section-icon">palette</span>
+      <div>
+        <h3>Appearance</h3>
+        <p>Customize how the app looks</p>
+      </div>
+    </div>
+
+    <div class="theme-row">
+      <div class="theme-info">
+        <span class="detail-label">Theme</span>
+        <span class="theme-desc">Switch between light and dark mode</span>
+      </div>
+      <button class="theme-toggle" [class.dark]="isDark()" (click)="toggleTheme()">
+        <span class="toggle-track">
+          <span class="toggle-icon light-icon">
+            <span class="material-symbols-outlined">light_mode</span>
+          </span>
+          <span class="toggle-icon dark-icon">
+            <span class="material-symbols-outlined">dark_mode</span>
+          </span>
+          <span class="toggle-thumb"></span>
+        </span>
+      </button>
+    </div>
+
+    <div class="theme-preview">
+      <div class="preview-option" [class.active]="!isDark()" (click)="isDark() && toggleTheme()">
+        <div class="preview-box light-preview">
+          <div class="preview-sidebar"></div>
+          <div class="preview-content">
+            <div class="preview-line"></div>
+            <div class="preview-line short"></div>
+          </div>
+        </div>
+        <span>Light</span>
+      </div>
+      <div class="preview-option" [class.active]="isDark()" (click)="!isDark() && toggleTheme()">
+        <div class="preview-box dark-preview">
+          <div class="preview-sidebar"></div>
+          <div class="preview-content">
+            <div class="preview-line"></div>
+            <div class="preview-line short"></div>
+          </div>
+        </div>
+        <span>Dark</span>
+      </div>
+    </div>
+  </div>
+</div>

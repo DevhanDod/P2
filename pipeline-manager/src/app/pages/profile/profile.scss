@@ -1,0 +1,286 @@
+.profile-card {
+  max-width: 600px;
+  margin-bottom: 24px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .material-symbols-outlined {
+    font-size: 36px;
+    color: white;
+  }
+}
+
+.profile-info {
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+
+  .detail-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .detail-value {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+// --- Appearance Section ---
+
+.section-card {
+  max-width: 600px;
+
+  .section-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+
+    .section-icon {
+      font-size: 26px;
+      color: var(--primary-light);
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+  }
+}
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.theme-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .detail-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.theme-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+// --- Toggle Switch ---
+
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle-track {
+  position: relative;
+  width: 56px;
+  height: 30px;
+  background: #e2e8f0;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  transition: background 0.3s ease;
+
+  .dark & {
+    background: #3b82f6;
+  }
+}
+
+.toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  z-index: 1;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
+.light-icon {
+  color: #f59e0b;
+}
+
+.dark-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.toggle-thumb {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: white;
+  border-radius: 50%;
+  left: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+
+  .dark & {
+    transform: translateX(26px);
+  }
+}
+
+// --- Theme Preview ---
+
+.theme-preview {
+  display: flex;
+  gap: 16px;
+}
+
+.preview-option {
+  cursor: pointer;
+  text-align: center;
+
+  span {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: color 0.2s;
+  }
+
+  &.active span {
+    color: var(--primary-light);
+  }
+}
+
+.preview-box {
+  width: 120px;
+  height: 76px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  transition: border-color 0.2s;
+
+  .preview-option.active & {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  &.light-preview {
+    background: #f8fafc;
+
+    .preview-sidebar {
+      width: 28px;
+      background: #0f172a;
+    }
+
+    .preview-content {
+      flex: 1;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      .preview-line {
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+
+        &.short {
+          width: 60%;
+        }
+      }
+    }
+  }
+
+  &.dark-preview {
+    background: #0f172a;
+
+    .preview-sidebar {
+      width: 28px;
+      background: #020617;
+    }
+
+    .preview-content {
+      flex: 1;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      .preview-line {
+        height: 6px;
+        background: #334155;
+        border-radius: 3px;
+
+        &.short {
+          width: 60%;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,593 @@
+@if (resource) {
+  <div class="page-layout">
+    <!-- Main Content -->
+    <div class="page-main">
+      <div class="page-container">
+        <div class="page-header">
+          <div class="header-row">
+            <div class="header-left">
+              <button class="back-btn" (click)="goBack()">
+                <span class="material-symbols-outlined">arrow_back</span>
+              </button>
+              <div>
+                <h1>{{ resource.customerCode }}</h1>
+                <p>Created {{ resource.createdAt | date:'mediumDate' }}</p>
+              </div>
+            </div>
+
+            <div class="status-section">
+              <div class="status-badge" [class]="getStatusClass()">
+                <span class="status-dot"></span>
+                <span class="status-text">Status: {{ getStatusLabel() }}</span>
+              </div>
+              <div class="help-icon-wrapper">
+                <span class="material-symbols-outlined help-icon">help</span>
+                <div class="tooltip">
+                  <div class="tooltip-title">Infrastructure Status</div>
+                  <div class="tooltip-item">
+                    <span class="tooltip-dot running"></span>
+                    <div><strong>Running</strong><span>Infrastructure is up and operational</span></div>
+                  </div>
+                  <div class="tooltip-item">
+                    <span class="tooltip-dot stopped"></span>
+                    <div><strong>Stopped</strong><span>Infrastructure has been shut down</span></div>
+                  </div>
+                  <div class="tooltip-item">
+                    <span class="tooltip-dot unknown"></span>
+                    <div><strong>Unknown</strong><span>No infrastructure created yet</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Common Variables -->
+        <div class="common-vars-section">
+          <div class="common-vars-header">
+            <div class="common-vars-title">
+              <span class="material-symbols-outlined">tune</span>
+              <div>
+                <h3>Common Variables</h3>
+                <p>Shared across all pipeline payloads for this resource</p>
+              </div>
+            </div>
+          </div>
+          <div class="common-vars-grid">
+            <div class="common-var-field">
+              <label>Customer Code</label>
+              <input [(ngModel)]="resource.commonVars.customerCode" (ngModelChange)="onCommonVarsChange()" placeholder="e.g. c3ol" />
+              @if (resource.commonVars.customerCode) {
+                <span class="field-status set">
+                  <span class="material-symbols-outlined">check_circle</span>
+                </span>
+              } @else {
+                <span class="field-status empty">
+                  <span class="material-symbols-outlined">circle</span>
+                </span>
+              }
+            </div>
+            <div class="common-var-field">
+              <label>Customer ID</label>
+              <input [(ngModel)]="resource.commonVars.customerId" (ngModelChange)="onCommonVarsChange()" placeholder="e.g. 12345" />
+              @if (resource.commonVars.customerId) {
+                <span class="field-status set">
+                  <span class="material-symbols-outlined">check_circle</span>
+                </span>
+              } @else {
+                <span class="field-status empty">
+                  <span class="material-symbols-outlined">circle</span>
+                </span>
+              }
+            </div>
+            <div class="common-var-field">
+              <label>Customer Name</label>
+              <input [(ngModel)]="resource.commonVars.customerName" (ngModelChange)="onCommonVarsChange()" placeholder="e.g. Acme Corp" />
+              @if (resource.commonVars.customerName) {
+                <span class="field-status set">
+                  <span class="material-symbols-outlined">check_circle</span>
+                </span>
+              } @else {
+                <span class="field-status empty">
+                  <span class="material-symbols-outlined">circle</span>
+                </span>
+              }
+            </div>
+            <div class="common-var-field">
+              <label>Snow</label>
+              <input [(ngModel)]="resource.commonVars.snow" (ngModelChange)="onCommonVarsChange()" placeholder="e.g. SNOW-1234" />
+              @if (resource.commonVars.snow) {
+                <span class="field-status set">
+                  <span class="material-symbols-outlined">check_circle</span>
+                </span>
+              } @else {
+                <span class="field-status empty">
+                  <span class="material-symbols-outlined">circle</span>
+                </span>
+              }
+            </div>
+            <div class="common-var-field">
+              <label>Region</label>
+              <input [(ngModel)]="resource.commonVars.region" (ngModelChange)="onCommonVarsChange()" placeholder="e.g. West Europe" />
+              @if (resource.commonVars.region) {
+                <span class="field-status set">
+                  <span class="material-symbols-outlined">check_circle</span>
+                </span>
+              } @else {
+                <span class="field-status empty">
+                  <span class="material-symbols-outlined">circle</span>
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Enabled Features -->
+        @if (resource.enabledFeatures.length > 0) {
+          <div class="features-section">
+            <div class="features-section-header">
+              <div class="features-section-title">
+                <span class="material-symbols-outlined">extension</span>
+                <div>
+                  <h3>Enabled Features</h3>
+                  <p>{{ resource.enabledFeatures.length }} feature{{ resource.enabledFeatures.length === 1 ? '' : 's' }} active</p>
+                </div>
+              </div>
+            </div>
+            <div class="features-tags">
+              @for (f of resource.enabledFeatures; track f.id) {
+                <div class="feature-tag">
+                  <span class="material-symbols-outlined feature-tag-icon">check_circle</span>
+                  <div class="feature-tag-info">
+                    <span class="feature-tag-name">{{ f.name }}</span>
+                    <span class="feature-tag-desc">{{ f.description }}</span>
+                  </div>
+                  <button class="feature-tag-remove" (click)="removeFeature(f.id)" title="Remove feature">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Selected Pipelines Table -->
+        @if (selectedPipelines.length > 0) {
+          <div class="table-section">
+            <div class="table-header">
+              <div>
+                <h3>Execution Order</h3>
+                <p>Pipelines will be triggered in this order</p>
+              </div>
+              <button class="btn btn-primary" (click)="openScheduleModal()">
+                <span class="material-symbols-outlined">schedule</span>
+                Schedule
+              </button>
+            </div>
+
+            <table class="pipeline-table">
+              <thead>
+                <tr>
+                  <th class="col-order">#</th>
+                  <th>Pipeline</th>
+                  <th>Pipeline URL</th>
+                  <th class="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sp of selectedPipelines; track sp.pipeline.id; let i = $index) {
+                  <tr [class.aks-row]="isAksPipeline(sp.pipeline)" [class.expanded]="expandedPipelineId === sp.pipeline.id">
+                    <td class="col-order">
+                      <span class="order-num">{{ sp.order }}</span>
+                    </td>
+                    <td>
+                      <div class="table-pipeline-info">
+                        <span class="material-symbols-outlined table-icon">terminal</span>
+                        <div>
+                          <span class="table-pipeline-name">{{ sp.pipeline.name }}</span>
+                          <span class="table-pipeline-desc">{{ sp.pipeline.description }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="col-url">
+                      @if (sp.triggerStatus === 'triggered' && sp.pipelineUrl) {
+                        <a class="url-link triggered" [href]="sp.pipelineUrl" target="_blank" title="{{ sp.pipelineUrl }}">
+                          <span class="material-symbols-outlined url-icon">open_in_new</span>
+                          <span class="url-text">{{ sp.pipelineUrl }}</span>
+                        </a>
+                      } @else if (sp.triggerStatus === 'triggering') {
+                        <span class="url-pending triggering">
+                          <span class="material-symbols-outlined spinning">sync</span>
+                          Triggering...
+                        </span>
+                      } @else {
+                        <span class="url-pending">
+                          <span class="material-symbols-outlined">schedule</span>
+                          Awaiting trigger
+                        </span>
+                      }
+                    </td>
+                    <td class="col-actions">
+                      <div class="table-actions">
+                        <button
+                          class="trigger-btn"
+                          [class.triggered]="sp.triggerStatus === 'triggered'"
+                          [class.triggering]="sp.triggerStatus === 'triggering'"
+                          [disabled]="sp.triggerStatus === 'triggering'"
+                          (click)="triggerPipeline(sp)"
+                          title="Trigger pipeline"
+                        >
+                          @if (sp.triggerStatus === 'triggering') {
+                            <span class="material-symbols-outlined spinning">sync</span>
+                          } @else if (sp.triggerStatus === 'triggered') {
+                            <span class="material-symbols-outlined">check_circle</span>
+                          } @else {
+                            <span class="material-symbols-outlined">play_arrow</span>
+                          }
+                        </button>
+                        <button class="payload-btn" [class.active]="expandedPipelineId === sp.pipeline.id" (click)="togglePayloadView(sp.pipeline.id)">
+                          <span class="material-symbols-outlined">data_object</span>
+                          Payload
+                        </button>
+                        <button class="icon-btn" (click)="movePipelineUp(i)" [disabled]="i === 0" title="Move up">
+                          <span class="material-symbols-outlined">arrow_upward</span>
+                        </button>
+                        <button class="icon-btn" (click)="movePipelineDown(i)" [disabled]="i === selectedPipelines.length - 1" title="Move down">
+                          <span class="material-symbols-outlined">arrow_downward</span>
+                        </button>
+                        <button class="icon-btn remove" (click)="removePipelineFromTable(sp)" title="Remove">
+                          <span class="material-symbols-outlined">close</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  @if (expandedPipelineId === sp.pipeline.id) {
+                    <tr class="payload-row">
+                      <td colspan="4">
+                        <div class="payload-panel">
+                          <div class="payload-header">
+                            <span class="material-symbols-outlined">description</span>
+                            <span>Payload for <strong>{{ sp.pipeline.name }}</strong></span>
+                            <div class="payload-header-actions">
+                              @if (!isEditing(sp.pipeline.id)) {
+                                <button class="payload-edit-btn" (click)="startEditPayload(sp.pipeline)" title="Edit payload">
+                                  <span class="material-symbols-outlined">edit</span>
+                                  Edit
+                                </button>
+                              } @else {
+                                <button class="payload-save-btn" (click)="saveEditPayload()" title="Save changes">
+                                  <span class="material-symbols-outlined">check</span>
+                                  Save
+                                </button>
+                                <button class="payload-cancel-btn" (click)="cancelEditPayload()" title="Cancel editing">
+                                  <span class="material-symbols-outlined">close</span>
+                                  Cancel
+                                </button>
+                              }
+                            </div>
+                          </div>
+
+                          @if (!isEditing(sp.pipeline.id)) {
+                            <!-- Read-only view -->
+                            <div class="payload-content">
+                              <div class="payload-line">
+                                <span class="payload-key">token</span>
+                                <span class="payload-sep">:</span>
+                                @if (sp.pipeline.token) {
+                                  <span class="payload-value">{{ sp.pipeline.token }}</span>
+                                } @else {
+                                  <span class="payload-value empty">Not set</span>
+                                }
+                              </div>
+                              <div class="payload-line">
+                                <span class="payload-key">ref</span>
+                                <span class="payload-sep">:</span>
+                                <span class="payload-value">{{ sp.pipeline.ref }}</span>
+                              </div>
+                              @for (v of sp.pipeline.variables; track v.key + $index) {
+                                <div class="payload-line" [class.commented]="v.commented">
+                                  @if (v.commented) {
+                                    <span class="payload-comment">//</span>
+                                  }
+                                  <span class="payload-key">variables[{{ v.key }}]</span>
+                                  <span class="payload-sep">:</span>
+                                  <span class="payload-value">{{ v.value }}</span>
+                                </div>
+                              }
+                            </div>
+                          } @else {
+                            <!-- Edit mode -->
+                            <div class="payload-edit-content">
+                              <div class="edit-row">
+                                <label class="edit-label">token</label>
+                                <input class="edit-input" [(ngModel)]="editPayload!.token" placeholder="Enter trigger token" />
+                              </div>
+                              <div class="edit-row">
+                                <label class="edit-label">ref</label>
+                                <input class="edit-input" [(ngModel)]="editPayload!.ref" placeholder="Branch ref" />
+                              </div>
+                              <div class="edit-vars-header">
+                                <span class="edit-vars-title">Variables</span>
+                                <button class="edit-add-var-btn" (click)="addEditVar()">
+                                  <span class="material-symbols-outlined">add</span>
+                                  Add Variable
+                                </button>
+                              </div>
+                              @for (v of editPayload!.variables; track $index; let vi = $index) {
+                                <div class="edit-var-row" [class.commented]="v.commented">
+                                  <button class="edit-var-action comment-toggle" (click)="toggleVarComment(vi)" [title]="v.commented ? 'Uncomment' : 'Comment out'">
+                                    <span class="material-symbols-outlined">{{ v.commented ? 'toggle_off' : 'toggle_on' }}</span>
+                                  </button>
+                                  <input class="edit-var-key" [(ngModel)]="v.key" placeholder="Variable key" />
+                                  <span class="edit-var-sep">:</span>
+                                  <input class="edit-var-value" [(ngModel)]="v.value" placeholder="Value" />
+                                  <button class="edit-var-action remove-var" (click)="removeEditVar(vi)" title="Remove variable">
+                                    <span class="material-symbols-outlined">delete</span>
+                                  </button>
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-center">
+            <span class="material-symbols-outlined empty-icon">playlist_add</span>
+            <h3>No pipelines selected</h3>
+            <p>Select pipelines from the right panel to build your execution order</p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <aside class="right-panel">
+      <div class="panel-header">
+        <h3>Controls</h3>
+      </div>
+
+      <div class="panel-section">
+        <h4 class="panel-section-title">Resource Actions</h4>
+        <div class="panel-buttons">
+          <button class="panel-btn success" (click)="startResources()">
+            <span class="material-symbols-outlined">play_arrow</span>
+            Start Resources
+          </button>
+          <button class="panel-btn danger" (click)="stopResources()">
+            <span class="material-symbols-outlined">stop</span>
+            Stop
+          </button>
+          <button class="panel-btn primary" (click)="restartResources()">
+            <span class="material-symbols-outlined">restart_alt</span>
+            Restart
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-section">
+        <h4 class="panel-section-title">Individual Controls</h4>
+        <div class="panel-buttons">
+          <button class="panel-btn secondary" (click)="startCluster()">
+            <span class="material-symbols-outlined">hub</span>
+            Start Clusters
+          </button>
+          <button class="panel-btn secondary" (click)="startVMs()">
+            <span class="material-symbols-outlined">computer</span>
+            Start VM's
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-section">
+        <h4 class="panel-section-title">Features</h4>
+        <div class="panel-buttons">
+          <button class="panel-btn primary" (click)="openFeaturesModal()">
+            <span class="material-symbols-outlined">extension</span>
+            Manage Features
+          </button>
+        </div>
+        @if (resource.enabledFeatures.length > 0) {
+          <div class="panel-feature-tags">
+            @for (f of resource.enabledFeatures; track f.id) {
+              <span class="panel-feature-tag">{{ f.name }}</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <!-- Pipeline Selector in Panel -->
+      <div class="panel-section">
+        <h4 class="panel-section-title">Available Pipelines</h4>
+
+        @if (!isAksSelected) {
+          <div class="panel-info-banner">
+            <span class="material-symbols-outlined">info</span>
+            <span>Select <strong>cld_aks</strong> first to unlock others</span>
+          </div>
+        }
+
+        <div class="panel-pipeline-selector">
+          @for (pipeline of availablePipelines; track pipeline.id) {
+            <button
+              class="panel-pipeline-btn"
+              [class.selected]="isPipelineSelected(pipeline)"
+              [class.disabled]="isPipelineDisabled(pipeline)"
+              [class.aks]="isAksPipeline(pipeline)"
+              (click)="togglePipeline(pipeline)"
+            >
+              <span class="material-symbols-outlined pp-icon">
+                {{ isPipelineSelected(pipeline) ? 'check_circle' : (isPipelineDisabled(pipeline) ? 'lock' : 'radio_button_unchecked') }}
+              </span>
+              <div class="pp-info">
+                <span class="pp-name">{{ pipeline.name }}</span>
+                <span class="pp-desc">{{ pipeline.description }}</span>
+              </div>
+              @if (!hasToken(pipeline)) {
+                <span class="pp-warning" title="No trigger token">
+                  <span class="material-symbols-outlined">warning</span>
+                </span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-section">
+        <h4 class="panel-section-title">Quick Info</h4>
+        <div class="panel-info-row">
+          <span>Cluster</span>
+          <div class="mini-status" [class]="resource.environment.cluster.status">
+            {{ getStatusLabel(resource.environment.cluster.status) }}
+          </div>
+        </div>
+        @for (vm of resource.environment.vms; track vm.name) {
+          <div class="panel-info-row">
+            <span>{{ vm.name }}</span>
+            <div class="mini-status" [class]="vm.status">
+              {{ getStatusLabel(vm.status) }}
+            </div>
+          </div>
+        }
+      </div>
+    </aside>
+  </div>
+}
+
+<!-- Schedule Modal -->
+@if (showScheduleModal) {
+  <div class="modal-overlay" (click)="closeScheduleModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Schedule Pipelines</h2>
+        <button class="modal-close" (click)="closeScheduleModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="schedule-tabs">
+          <button class="schedule-tab" [class.active]="scheduleMode === 'chain'" (click)="scheduleMode = 'chain'">
+            <span class="material-symbols-outlined">link</span>
+            Chain Trigger
+          </button>
+          <button class="schedule-tab" [class.active]="scheduleMode === 'time'" (click)="scheduleMode = 'time'">
+            <span class="material-symbols-outlined">schedule</span>
+            Scheduled Time
+          </button>
+        </div>
+
+        @if (scheduleMode === 'chain') {
+          <p class="schedule-desc">Each pipeline triggers after the previous one completes. Set the condition for each.</p>
+          <div class="schedule-chain-list">
+            @for (sp of selectedPipelines; track sp.pipeline.id; let i = $index) {
+              <div class="chain-item">
+                <div class="chain-order">{{ sp.order }}</div>
+                <div class="chain-info">
+                  <span class="chain-name">{{ sp.pipeline.name }}</span>
+                  @if (i > 0) {
+                    <div class="chain-condition">
+                      <span class="chain-label">Trigger when previous:</span>
+                      <select [(ngModel)]="sp.chainCondition" class="chain-select">
+                        <option value="success">Succeeds</option>
+                        <option value="failure">Fails</option>
+                        <option value="any">Succeeds or Fails</option>
+                      </select>
+                    </div>
+                  } @else {
+                    <span class="chain-first">Triggers first</span>
+                  }
+                </div>
+              </div>
+              @if (i < selectedPipelines.length - 1) {
+                <div class="chain-arrow">
+                  <span class="material-symbols-outlined">arrow_downward</span>
+                </div>
+              }
+            }
+          </div>
+        }
+
+        @if (scheduleMode === 'time') {
+          <p class="schedule-desc">Set a specific date and time to trigger each pipeline.</p>
+          <div class="schedule-time-list">
+            @for (sp of selectedPipelines; track sp.pipeline.id) {
+              <div class="time-item">
+                <div class="time-info">
+                  <span class="time-order">{{ sp.order }}</span>
+                  <span class="time-name">{{ sp.pipeline.name }}</span>
+                </div>
+                <input
+                  type="datetime-local"
+                  class="time-input"
+                  [(ngModel)]="sp.scheduledTime"
+                />
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeScheduleModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="confirmSchedule()">
+          <span class="material-symbols-outlined">check</span>
+          Confirm Schedule
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Features Modal -->
+@if (showFeaturesModal) {
+  <div class="modal-overlay" (click)="closeFeaturesModal()">
+    <div class="modal features-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Manage Features</h2>
+        <button class="modal-close" (click)="closeFeaturesModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="features-modal-desc">Select the features to enable for this resource</p>
+        <div class="features-checklist">
+          @for (fs of featureSelections; track fs.feature.id) {
+            <label class="feature-check-item" [class.checked]="fs.selected">
+              <input type="checkbox" [(ngModel)]="fs.selected" />
+              <span class="feature-checkbox">
+                <span class="material-symbols-outlined">{{ fs.selected ? 'check_box' : 'check_box_outline_blank' }}</span>
+              </span>
+              <div class="feature-check-info">
+                <span class="feature-check-name">{{ fs.feature.name }}</span>
+                <span class="feature-check-desc">{{ fs.feature.description }}</span>
+              </div>
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeFeaturesModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="saveFeatures()">
+          <span class="material-symbols-outlined">check</span>
+          Save Features
+        </button>
+      </div>
+    </div>
+  </div>
+}
