@@ -58,8 +58,30 @@ export class TrackService {
       collaborators: [],
       versions: [
         {
-          id: 'v1', name: 'Track 01', customerCode: '', features: [],
-          status: 'unknown', commonVars: createDefaultCommonVars(''), enabledFeatures: [], environment: createDefaultEnvironment(''),
+          id: 'v1', name: 'Track 01', customerCode: 'c3lo',
+          features: [],
+          status: 'running',
+          commonVars: {
+            customerCode: 'c3lo',
+            customerId: '1223',
+            customerName: 'IFS',
+            snow: 'SN1223',
+            region: 'japaneast',
+          },
+          enabledFeatures: [
+            { id: 'env_uat', name: 'env_UAT', description: 'User Acceptance Testing environment', enabled: true },
+            { id: 'env_prd', name: 'env_PRD', description: 'Production environment', enabled: true },
+            { id: 'oi', name: 'OI', description: 'Operational Intelligence', enabled: true },
+            { id: 'ha', name: 'HA', description: 'High Availability', enabled: true },
+          ],
+          environment: {
+            name: 'uat',
+            cluster: { name: 'c3lo_p', status: 'running' },
+            vms: [
+              { name: 'c3lo_uat_ao1', type: 'App Object Server', status: 'running' },
+              { name: 'c3lo_uat_db1', type: 'Database Server', status: 'running' },
+            ],
+          },
         },
         {
           id: 'v2', name: 'Track 02', customerCode: '', features: [],

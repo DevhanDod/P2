@@ -206,6 +206,7 @@
           <button class="panel-btn success" (click)="startResources()"><span class="material-symbols-outlined">play_arrow</span> Start Resources</button>
           <button class="panel-btn danger" (click)="stopResources()"><span class="material-symbols-outlined">stop</span> Stop</button>
           <button class="panel-btn primary" (click)="restartResources()"><span class="material-symbols-outlined">restart_alt</span> Restart</button>
+          <button class="panel-btn delete-resources" (click)="openDeleteModal()"><span class="material-symbols-outlined">delete_sweep</span> Delete Resources</button>
         </div>
       </div>
 
@@ -217,6 +218,35 @@
           <button class="panel-btn secondary" (click)="startCluster()"><span class="material-symbols-outlined">hub</span> Start Clusters</button>
           <button class="panel-btn secondary" (click)="startVMs()"><span class="material-symbols-outlined">computer</span> Start VM's</button>
         </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-section">
+        <h4 class="panel-section-title">Health Monitoring</h4>
+        <div class="panel-buttons">
+          <button class="panel-btn health-check" [class.running]="isRunningHealthCheck" (click)="runHealthCheck('Manual')" [disabled]="isRunningHealthCheck">
+            <span class="material-symbols-outlined" [class.spinning]="isRunningHealthCheck">{{ isRunningHealthCheck ? 'sync' : 'monitor_heart' }}</span>
+            {{ isRunningHealthCheck ? 'Checking...' : 'Run Health Check' }}
+          </button>
+          @if (healthCheckRuns.length > 0) {
+            <button class="panel-btn secondary" (click)="openHealthCheckModal()">
+              <span class="material-symbols-outlined">assignment</span>
+              View Reports ({{ healthCheckRuns.length }})
+            </button>
+          }
+        </div>
+        @if (healthCheckRuns.length > 0) {
+          <div class="panel-health-summary">
+            <div class="panel-health-latest">
+              <span class="material-symbols-outlined health-summary-icon {{ healthCheckRuns[0].overallStatus }}">{{ getHealthStatusIcon(healthCheckRuns[0].overallStatus) }}</span>
+              <div class="health-summary-info">
+                <span class="health-summary-label">Latest: {{ healthCheckRuns[0].overallStatus === 'checking' ? 'Running...' : (healthCheckRuns[0].overallStatus | titlecase) }}</span>
+                <span class="health-summary-time">{{ healthCheckRuns[0].triggeredBy }}</span>
+              </div>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="panel-divider"></div>
@@ -319,6 +349,212 @@
         </div>
       </div>
       <div class="modal-footer"><button class="btn btn-secondary" (click)="closeFeaturesModal()">Cancel</button><button class="btn btn-primary" (click)="saveFeatures()"><span class="material-symbols-outlined">check</span> Save Features</button></div>
+    </div>
+  </div>
+}
+
+<!-- Delete Resources Modal -->
+@if (showDeleteModal) {
+  <div class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="modal delete-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="delete-modal-title">
+          <span class="material-symbols-outlined delete-modal-icon">delete_sweep</span>
+          <h2>Delete Resources</h2>
+        </div>
+        <button class="modal-close" (click)="closeDeleteModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-warning-banner">
+          <span class="material-symbols-outlined">warning</span>
+          <span>This action will permanently delete selected resources. A security PIN will be required to confirm.</span>
+        </div>
+        <p class="delete-modal-desc">Select the resources to delete</p>
+        <div class="delete-checklist">
+          @for (ds of deleteSelections; track ds.feature.id) {
+            <label class="delete-check-item" [class.checked]="ds.selected">
+              <input type="checkbox" [(ngModel)]="ds.selected" />
+              <span class="delete-checkbox">
+                <span class="material-symbols-outlined">{{ ds.selected ? 'check_box' : 'check_box_outline_blank' }}</span>
+              </span>
+              <div class="delete-check-info">
+                <span class="delete-check-name">{{ ds.feature.name }}</span>
+                <span class="delete-check-desc">{{ ds.feature.description }}</span>
+              </div>
+            </label>
+          }
+        </div>
+      </div>
+      <div class="modal-footer delete-modal-footer">
+        <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" (click)="deleteAll()">
+          <span class="material-symbols-outlined">delete_forever</span>
+          Delete All
+        </button>
+        <button class="btn btn-danger" (click)="deleteSelected()">
+          <span class="material-symbols-outlined">delete</span>
+          Delete Selected
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Security PIN Modal -->
+@if (showPinModal) {
+  <div class="modal-overlay" (click)="closePinModal()">
+    <div class="modal pin-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Security Verification</h2>
+        <button class="modal-close" (click)="closePinModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body pin-modal-body">
+        <div class="pin-lock-icon">
+          <span class="material-symbols-outlined">lock</span>
+        </div>
+        <p class="pin-title">Enter Security PIN</p>
+        <p class="pin-subtitle">Enter the 4-digit security PIN to confirm deletion</p>
+        <div class="pin-input-group" [class.error]="pinError">
+          <input
+            type="password"
+            maxlength="1"
+            class="pin-digit"
+            [value]="pinDigits[0] || ''"
+            (input)="onPinChange($any($event.target).value, 0); onPinInput($event, 0)"
+            autofocus
+          />
+          <input
+            type="password"
+            maxlength="1"
+            class="pin-digit"
+            [value]="pinDigits[1] || ''"
+            (input)="onPinChange($any($event.target).value, 1); onPinInput($event, 1)"
+          />
+          <input
+            type="password"
+            maxlength="1"
+            class="pin-digit"
+            [value]="pinDigits[2] || ''"
+            (input)="onPinChange($any($event.target).value, 2); onPinInput($event, 2)"
+          />
+          <input
+            type="password"
+            maxlength="1"
+            class="pin-digit"
+            [value]="pinDigits[3] || ''"
+            (input)="onPinChange($any($event.target).value, 3); onPinInput($event, 3)"
+          />
+        </div>
+        @if (pinError) {
+          <p class="pin-error">Please enter all 4 digits</p>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closePinModal()">Cancel</button>
+        <button class="btn btn-danger" (click)="confirmPin()">
+          <span class="material-symbols-outlined">verified_user</span>
+          Confirm Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Health Check Report Modal -->
+@if (showHealthCheckModal) {
+  <div class="modal-overlay" (click)="closeHealthCheckModal()">
+    <div class="modal health-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="health-modal-title">
+          <span class="material-symbols-outlined health-modal-icon">monitor_heart</span>
+          <h2>Health Check Reports</h2>
+        </div>
+        <div class="modal-header-actions">
+          <button class="btn btn-primary btn-sm" [disabled]="isRunningHealthCheck" (click)="runHealthCheck('Manual')">
+            <span class="material-symbols-outlined" [class.spinning]="isRunningHealthCheck">{{ isRunningHealthCheck ? 'sync' : 'play_arrow' }}</span>
+            {{ isRunningHealthCheck ? 'Running...' : 'Run Now' }}
+          </button>
+          <button class="modal-close" (click)="closeHealthCheckModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body health-modal-body">
+        @if (healthCheckRuns.length === 0) {
+          <div class="health-empty">
+            <span class="material-symbols-outlined">monitor_heart</span>
+            <p>No health checks run yet</p>
+            <span class="health-empty-hint">Click "Run Now" to perform a health check</span>
+          </div>
+        } @else {
+          <div class="health-layout">
+            <!-- Run History Sidebar -->
+            <div class="health-history">
+              <div class="health-history-title">Run History</div>
+              @for (run of healthCheckRuns; track run.id) {
+                <button class="health-history-item" [class.active]="activeHealthRunId === run.id" (click)="setActiveRun(run)">
+                  <span class="material-symbols-outlined health-history-icon {{ run.overallStatus }}" [class.spinning]="run.overallStatus === 'checking'">{{ getHealthStatusIcon(run.overallStatus) }}</span>
+                  <div class="health-history-info">
+                    <span class="health-history-trigger">{{ run.triggeredBy }}</span>
+                    <span class="health-history-time">{{ run.timestamp | date:'shortTime' }}</span>
+                  </div>
+                </button>
+              }
+            </div>
+
+            <!-- Report Detail -->
+            @if (getActiveRun(); as run) {
+              <div class="health-report">
+                <div class="health-report-header">
+                  <div class="health-report-status {{ run.overallStatus }}">
+                    <span class="material-symbols-outlined" [class.spinning]="run.overallStatus === 'checking'">{{ getHealthStatusIcon(run.overallStatus) }}</span>
+                    <span>{{ run.overallStatus === 'checking' ? 'Checking...' : (run.overallStatus | titlecase) }}</span>
+                  </div>
+                  <span class="health-report-meta">{{ run.triggeredBy }} &middot; {{ run.timestamp | date:'medium' }}</span>
+                </div>
+
+                @for (cat of getCategories(run.items); track cat) {
+                  <div class="health-category">
+                    <div class="health-category-title">{{ cat }}</div>
+                    <table class="health-table">
+                      <thead>
+                        <tr>
+                          <th>Check</th>
+                          <th class="col-status">Status</th>
+                          <th>Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (item of getItemsByCategory(run.items, cat); track item.name) {
+                          <tr>
+                            <td class="health-check-name">{{ item.name }}</td>
+                            <td class="col-status">
+                              <span class="health-status-badge {{ item.status }}">
+                                <span class="material-symbols-outlined" [class.spinning]="item.status === 'checking'">{{ getHealthStatusIcon(item.status) }}</span>
+                                {{ item.status === 'checking' ? 'Checking' : (item.status | titlecase) }}
+                              </span>
+                            </td>
+                            <td class="health-detail">{{ item.detail || '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeHealthCheckModal()">Close</button>
+      </div>
     </div>
   </div>
 }

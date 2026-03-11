@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, TitleCasePipe } from '@angular/common';
 import { TrackService, Track, TrackVersion } from '../../services/track';
 import { ResourceStatus, ResourceFeature, AVAILABLE_FEATURES } from '../../services/resource';
 import { PayloadService, PipelinePayload } from '../../services/payload';
 
 export type ScheduleMode = 'time' | 'chain';
 export type TriggerStatus = 'pending' | 'triggering' | 'triggered' | 'failed';
+export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'checking' | 'unknown';
 
 export interface SelectedPipeline {
   pipeline: PipelinePayload;
@@ -18,9 +19,24 @@ export interface SelectedPipeline {
   pipelineUrl: string;
 }
 
+export interface HealthCheckItem {
+  category: string;
+  name: string;
+  status: HealthStatus;
+  detail: string;
+}
+
+export interface HealthCheckRun {
+  id: string;
+  triggeredBy: string;
+  timestamp: Date;
+  overallStatus: HealthStatus;
+  items: HealthCheckItem[];
+}
+
 @Component({
   selector: 'app-track-version-detail',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, TitleCasePipe],
   templateUrl: './track-version-detail.html',
   styleUrl: './track-version-detail.scss',
 })
@@ -39,6 +55,18 @@ export class TrackVersionDetail implements OnInit {
 
   showFeaturesModal = false;
   featureSelections: { feature: ResourceFeature; selected: boolean }[] = [];
+
+  showHealthCheckModal = false;
+  healthCheckRuns: HealthCheckRun[] = [];
+  isRunningHealthCheck = false;
+  activeHealthRunId: string | null = null;
+
+  showDeleteModal = false;
+  showPinModal = false;
+  deleteSelections: { feature: ResourceFeature; selected: boolean }[] = [];
+  securityPin = '';
+  pinError = false;
+  deleteMode: 'selected' | 'all' = 'selected';
 
   constructor(
     private route: ActivatedRoute,
@@ -63,6 +91,50 @@ export class TrackVersionDetail implements OnInit {
     }
 
     this.availablePipelines = this.payloadService.getPipelines();
+
+    if (trackId === 'jan-su' && versionId === 'v1') {
+      this.setupDemoData();
+    }
+  }
+
+  private setupDemoData() {
+    const aksP = this.payloadService.getPipelineById('cld_aks');
+    const deliveryP = this.payloadService.getPipelineById('cld_delivery');
+    const cloningP = this.payloadService.getPipelineById('env_cloning');
+
+    if (aksP) {
+      this.selectedPipelines.push({
+        pipeline: aksP,
+        order: 1,
+        chainCondition: 'success',
+        scheduledTime: '',
+        triggerStatus: 'triggered',
+        pipelineUrl: 'https://gitlab.com/api/v4/projects/12345/pipelines/58321',
+      });
+      this.isAksSelected = true;
+    }
+
+    if (deliveryP) {
+      this.selectedPipelines.push({
+        pipeline: deliveryP,
+        order: 2,
+        chainCondition: 'success',
+        scheduledTime: '',
+        triggerStatus: 'triggering',
+        pipelineUrl: '',
+      });
+    }
+
+    if (cloningP) {
+      this.selectedPipelines.push({
+        pipeline: cloningP,
+        order: 3,
+        chainCondition: 'success',
+        scheduledTime: '',
+        triggerStatus: 'pending',
+        pipelineUrl: '',
+      });
+    }
   }
 
   goBack() {
@@ -270,6 +342,7 @@ export class TrackVersionDetail implements OnInit {
       const pipelineId = Math.floor(10000 + Math.random() * 90000);
       sp.pipelineUrl = sp.pipeline.triggerUrl.replace('/trigger/pipeline', `/pipelines/${pipelineId}`);
       sp.triggerStatus = 'triggered';
+      this.runHealthCheck(`After ${sp.pipeline.name}`);
     }, 1500);
   }
 
@@ -290,4 +363,245 @@ export class TrackVersionDetail implements OnInit {
 
   closeScheduleModal() { this.showScheduleModal = false; }
   confirmSchedule() { this.showScheduleModal = false; }
+
+  openHealthCheckModal() {
+    this.showHealthCheckModal = true;
+  }
+
+  closeHealthCheckModal() {
+    this.showHealthCheckModal = false;
+  }
+
+  runHealthCheck(triggeredBy: string = 'Manual') {
+    if (this.isRunningHealthCheck || !this.version) return;
+
+    const code = this.version.commonVars.customerCode || 'unknown';
+    const run: HealthCheckRun = {
+      id: `hc-${Date.now()}`,
+      triggeredBy,
+      timestamp: new Date(),
+      overallStatus: 'checking',
+      items: this.generateCheckItems(code),
+    };
+
+    this.healthCheckRuns.unshift(run);
+    this.activeHealthRunId = run.id;
+    this.isRunningHealthCheck = true;
+    this.showHealthCheckModal = true;
+
+    let idx = 0;
+    const checkNext = () => {
+      if (idx >= run.items.length) {
+        const statuses = run.items.map((i) => i.status);
+        if (statuses.some((s) => s === 'unhealthy')) run.overallStatus = 'unhealthy';
+        else if (statuses.some((s) => s === 'degraded')) run.overallStatus = 'degraded';
+        else run.overallStatus = 'healthy';
+        this.isRunningHealthCheck = false;
+        return;
+      }
+
+      run.items[idx].status = 'checking';
+      setTimeout(() => {
+        const roll = Math.random();
+        run.items[idx].status = roll > 0.15 ? 'healthy' : (roll > 0.05 ? 'degraded' : 'unhealthy');
+        run.items[idx].detail = this.getHealthDetail(run.items[idx]);
+        idx++;
+        checkNext();
+      }, 400 + Math.random() * 300);
+    };
+
+    checkNext();
+  }
+
+  private generateCheckItems(code: string): HealthCheckItem[] {
+    const items: HealthCheckItem[] = [
+      { category: 'Cluster', name: 'Cluster Version', status: 'unknown', detail: '' },
+      { category: 'Cluster', name: 'Cluster Status', status: 'unknown', detail: '' },
+      { category: 'Cluster', name: 'Cluster Power State', status: 'unknown', detail: '' },
+      { category: 'VM', name: `${code}_uat_ao1`, status: 'unknown', detail: '' },
+      { category: 'VM', name: `${code}_uat_db1`, status: 'unknown', detail: '' },
+    ];
+
+    if (this.version) {
+      for (const f of this.version.enabledFeatures) {
+        if (['env_uat', 'env_cfg', 'env_prd'].includes(f.id)) {
+          items.push({ category: 'Environment Pods', name: `${f.name} Pods`, status: 'unknown', detail: '' });
+        }
+        if (['oi', 'pso'].includes(f.id)) {
+          items.push({ category: 'Feature Pods', name: `${f.name} Pods`, status: 'unknown', detail: '' });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  private getHealthDetail(item: HealthCheckItem): string {
+    if (item.status === 'healthy') {
+      if (item.name === 'Cluster Version') return 'v1.28.5 (latest)';
+      if (item.name === 'Cluster Status') return 'Provisioned & Ready';
+      if (item.name === 'Cluster Power State') return 'Running';
+      if (item.category === 'VM') return 'Running — Allocated';
+      if (item.category === 'Environment Pods') return 'All pods healthy (3/3)';
+      if (item.category === 'Feature Pods') return 'All pods healthy (2/2)';
+    }
+    if (item.status === 'degraded') {
+      if (item.category === 'Environment Pods') return '2/3 pods running, 1 restarting';
+      if (item.category === 'Feature Pods') return '1/2 pods running';
+      return 'Partially available';
+    }
+    if (item.status === 'unhealthy') return 'Not responding';
+    return 'Checking...';
+  }
+
+  getHealthStatusIcon(status: HealthStatus): string {
+    switch (status) {
+      case 'healthy': return 'check_circle';
+      case 'degraded': return 'warning';
+      case 'unhealthy': return 'error';
+      case 'checking': return 'sync';
+      default: return 'help';
+    }
+  }
+
+  getActiveRun(): HealthCheckRun | undefined {
+    if (this.activeHealthRunId) {
+      return this.healthCheckRuns.find((r) => r.id === this.activeHealthRunId);
+    }
+    return this.healthCheckRuns[0];
+  }
+
+  setActiveRun(run: HealthCheckRun) {
+    this.activeHealthRunId = run.id;
+  }
+
+  getCategories(items: HealthCheckItem[]): string[] {
+    return [...new Set(items.map((i) => i.category))];
+  }
+
+  getItemsByCategory(items: HealthCheckItem[], category: string): HealthCheckItem[] {
+    return items.filter((i) => i.category === category);
+  }
+
+  openDeleteModal() {
+    if (!this.version) return;
+    this.deleteSelections = AVAILABLE_FEATURES.map((f) => ({
+      feature: { ...f },
+      selected: false,
+    }));
+    this.showDeleteModal = true;
+  }
+
+  closeDeleteModal() {
+    this.showDeleteModal = false;
+  }
+
+  deleteSelected() {
+    const hasSelection = this.deleteSelections.some((ds) => ds.selected);
+    if (!hasSelection) return;
+    this.deleteMode = 'selected';
+    this.showDeleteModal = false;
+    this.openPinModal();
+  }
+
+  deleteAll() {
+    this.deleteSelections.forEach((ds) => (ds.selected = true));
+    this.deleteMode = 'all';
+    this.showDeleteModal = false;
+    this.openPinModal();
+  }
+
+  openPinModal() {
+    this.securityPin = '';
+    this.pinError = false;
+    this.showPinModal = true;
+  }
+
+  closePinModal() {
+    this.showPinModal = false;
+    this.securityPin = '';
+    this.pinError = false;
+  }
+
+  onPinInput(event: Event, index: number) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    if (value && index < 3) {
+      const next = input.parentElement?.querySelector<HTMLInputElement>(`input:nth-child(${index + 2})`);
+      next?.focus();
+    }
+  }
+
+  get pinDigits(): string[] {
+    return this.securityPin.padEnd(4, '').split('').slice(0, 4);
+  }
+
+  onPinChange(value: string, index: number) {
+    const digits = this.securityPin.padEnd(4, ' ').split('');
+    digits[index] = value.slice(-1) || ' ';
+    this.securityPin = digits.join('').trim();
+    this.pinError = false;
+  }
+
+  confirmPin() {
+    if (this.securityPin.length !== 4) {
+      this.pinError = true;
+      return;
+    }
+
+    this.showPinModal = false;
+    this.processDelete();
+  }
+
+  private processDelete() {
+    if (!this.version) return;
+
+    const featuresToDelete = this.deleteSelections
+      .filter((ds) => ds.selected)
+      .map((ds) => ds.feature);
+
+    this.version.enabledFeatures = this.version.enabledFeatures
+      .filter((ef) => !featuresToDelete.some((fd) => fd.id === ef.id));
+
+    const startOrder = this.selectedPipelines.length + 1;
+    featuresToDelete.forEach((feature, i) => {
+      const deletePipeline: PipelinePayload = {
+        id: `delete_${feature.id}_${Date.now()}`,
+        name: `delete_${feature.name}`,
+        description: `Delete ${feature.name} - ${feature.description}`,
+        token: 'auto-generated',
+        ref: 'master',
+        triggerUrl: `https://gitlab.com/api/v4/projects/12345/trigger/pipeline`,
+        isDefault: false,
+        variables: [],
+      };
+
+      this.selectedPipelines.push({
+        pipeline: deletePipeline,
+        order: startOrder + i,
+        chainCondition: 'success',
+        scheduledTime: '',
+        triggerStatus: i === 0 ? 'triggering' : 'pending',
+        pipelineUrl: '',
+      });
+    });
+
+    if (featuresToDelete.length > 0) {
+      const firstDeleteIdx = startOrder - 1;
+      const firstSp = this.selectedPipelines[firstDeleteIdx];
+      if (firstSp && firstSp.triggerStatus === 'triggering') {
+        setTimeout(() => {
+          const pipelineId = Math.floor(10000 + Math.random() * 90000);
+          firstSp.pipelineUrl = firstSp.pipeline.triggerUrl.replace('/trigger/pipeline', `/pipelines/${pipelineId}`);
+          firstSp.triggerStatus = 'triggered';
+
+          if (firstDeleteIdx + 1 < this.selectedPipelines.length) {
+            this.selectedPipelines[firstDeleteIdx + 1].triggerStatus = 'triggering';
+          }
+        }, 3000);
+      }
+    }
+
+    this.securityPin = '';
+  }
 }
