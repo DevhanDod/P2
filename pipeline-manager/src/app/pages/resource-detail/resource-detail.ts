@@ -33,6 +33,40 @@ export interface HealthCheckRun {
   items: HealthCheckItem[];
 }
 
+export type JobStatus = 'passed' | 'failed' | 'running' | 'pending' | 'skipped';
+
+export interface PipelineJob {
+  id: string;
+  name: string;
+  status: JobStatus;
+  duration: string;
+  isDownstreamTrigger?: boolean;
+  downstreamId?: string;
+  log: string;
+}
+
+export interface PipelineStage {
+  name: string;
+  jobs: PipelineJob[];
+}
+
+export interface DownstreamPipeline {
+  id: string;
+  name: string;
+  url: string;
+  status: JobStatus;
+  triggeredByJobId: string;
+  stages: PipelineStage[];
+}
+
+export interface PipelineDetailData {
+  pipelineUrl: string;
+  pipelineName: string;
+  status: JobStatus;
+  stages: PipelineStage[];
+  downstream: DownstreamPipeline[];
+}
+
 @Component({
   selector: 'app-resource-detail',
   imports: [FormsModule, DatePipe, TitleCasePipe],
@@ -65,6 +99,12 @@ export class ResourceDetail implements OnInit {
   securityPin = '';
   pinError = false;
   deleteMode: 'selected' | 'all' = 'selected';
+
+  showPipelineDetailModal = false;
+  pipelineDetailData: PipelineDetailData | null = null;
+  selectedJob: PipelineJob | null = null;
+  showDetailPayload = false;
+  detailPipeline: SelectedPipeline | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -548,5 +588,134 @@ export class ResourceDetail implements OnInit {
     }
 
     this.securityPin = '';
+  }
+
+  openPipelineDetail(sp: SelectedPipeline) {
+    this.detailPipeline = sp;
+    this.pipelineDetailData = this.generateMockPipelineDetail(sp);
+    this.selectedJob = null;
+    this.showDetailPayload = false;
+    this.showPipelineDetailModal = true;
+  }
+
+  closePipelineDetail() {
+    this.showPipelineDetailModal = false;
+    this.pipelineDetailData = null;
+    this.selectedJob = null;
+    this.detailPipeline = null;
+  }
+
+  toggleDetailPayload() {
+    this.showDetailPayload = !this.showDetailPayload;
+  }
+
+  selectJob(job: PipelineJob) {
+    this.selectedJob = this.selectedJob?.id === job.id ? null : job;
+  }
+
+  getJobStatusIcon(status: JobStatus): string {
+    switch (status) {
+      case 'passed': return 'check_circle';
+      case 'failed': return 'cancel';
+      case 'running': return 'play_circle';
+      case 'pending': return 'schedule';
+      case 'skipped': return 'skip_next';
+    }
+  }
+
+  getStageStatus(stage: PipelineStage): JobStatus {
+    if (stage.jobs.some(j => j.status === 'failed')) return 'failed';
+    if (stage.jobs.some(j => j.status === 'running')) return 'running';
+    if (stage.jobs.every(j => j.status === 'passed')) return 'passed';
+    if (stage.jobs.some(j => j.status === 'pending')) return 'pending';
+    return 'passed';
+  }
+
+  getDownstreamForJob(jobId: string): DownstreamPipeline | undefined {
+    return this.pipelineDetailData?.downstream.find(d => d.triggeredByJobId === jobId);
+  }
+
+  hasDownstream(): boolean {
+    return (this.pipelineDetailData?.downstream.length ?? 0) > 0;
+  }
+
+  private generateMockPipelineDetail(sp: SelectedPipeline): PipelineDetailData {
+    if (sp.triggerStatus === 'triggered') {
+      return {
+        pipelineUrl: sp.pipelineUrl,
+        pipelineName: sp.pipeline.name,
+        status: 'passed',
+        stages: [
+          {
+            name: 'validate', jobs: [
+              { id: 'j1', name: 'lint', status: 'passed', duration: '0:12', log: '$ hadolint Dockerfile\n$ yamllint .gitlab-ci.yml\nAll files passed linting.\n\nJob succeeded' },
+              { id: 'j2', name: 'validate_config', status: 'passed', duration: '0:05', log: '$ terraform validate\nSuccess! The configuration is valid.\n\nJob succeeded' },
+            ]
+          },
+          {
+            name: 'plan', jobs: [
+              { id: 'j3', name: 'terraform_plan', status: 'passed', duration: '0:34', log: '$ terraform plan -out=tfplan\nPlan: 12 to add, 0 to change, 0 to destroy.\n\nJob succeeded' },
+            ]
+          },
+          {
+            name: 'apply', jobs: [
+              { id: 'j4', name: 'terraform_apply', status: 'passed', duration: '3:12', isDownstreamTrigger: true, downstreamId: 'ds1', log: '$ terraform apply tfplan\nApply complete! Resources: 12 added.\n\nTriggering downstream pipeline...\nJob succeeded' },
+            ]
+          },
+          {
+            name: 'verify', jobs: [
+              { id: 'j5', name: 'health_check', status: 'passed', duration: '0:10', log: '$ kubectl get nodes\nAll nodes Ready.\n\nJob succeeded' },
+              { id: 'j6', name: 'smoke_test', status: 'passed', duration: '0:08', log: '$ curl /healthz\n{"status":"ok"}\n\nJob succeeded' },
+            ]
+          },
+        ],
+        downstream: [
+          {
+            id: 'ds1', name: `${sp.pipeline.name}_deploy`, url: sp.pipelineUrl?.replace(/\d+$/, '92451') || '', status: 'passed', triggeredByJobId: 'j4',
+            stages: [
+              { name: 'init', jobs: [{ id: 'ds1-j1', name: 'setup_env', status: 'passed', duration: '0:08', log: '$ az aks get-credentials\nContext configured.\n\nJob succeeded' }] },
+              { name: 'deploy', jobs: [
+                { id: 'ds1-j2', name: 'deploy_cluster', status: 'passed', duration: '1:45', log: '$ helm upgrade --install ifs-cloud\nRelease deployed.\n\nJob succeeded' },
+                { id: 'ds1-j3', name: 'configure_net', status: 'passed', duration: '0:22', log: '$ kubectl apply -f networking/\ningress configured.\n\nJob succeeded' },
+              ] },
+              { name: 'test', jobs: [{ id: 'ds1-j4', name: 'integration_test', status: 'passed', duration: '0:15', log: '$ npm run test:integration\n5 passed, 0 failed.\n\nJob succeeded' }] },
+            ],
+          },
+        ],
+      };
+    }
+    if (sp.triggerStatus === 'triggering') {
+      return {
+        pipelineUrl: '', pipelineName: sp.pipeline.name, status: 'running',
+        stages: [
+          { name: 'prepare', jobs: [
+            { id: 'r1', name: 'fetch_artifacts', status: 'passed', duration: '0:15', log: 'Artifacts downloaded.\n\nJob succeeded' },
+          ] },
+          { name: 'build', jobs: [
+            { id: 'r2', name: 'build_images', status: 'running', duration: '1:22', log: '$ docker build -t ifs-cloud:24.1.0 .\nStep 7/12 : RUN npm ci\n ---> Running...' },
+          ] },
+          { name: 'deploy', jobs: [
+            { id: 'r3', name: 'deploy_to_env', status: 'pending', duration: '--', log: '' },
+          ] },
+        ],
+        downstream: [],
+      };
+    }
+    return {
+      pipelineUrl: '', pipelineName: sp.pipeline.name, status: 'pending',
+      stages: [
+        { name: 'validate', jobs: [
+          { id: 'p1', name: 'check_source', status: 'pending', duration: '--', log: '' },
+          { id: 'p2', name: 'check_target', status: 'pending', duration: '--', log: '' },
+        ] },
+        { name: 'execute', jobs: [
+          { id: 'p3', name: `run_${sp.pipeline.name}`, status: 'pending', duration: '--', log: '' },
+        ] },
+        { name: 'verify', jobs: [
+          { id: 'p4', name: 'run_tests', status: 'pending', duration: '--', log: '' },
+        ] },
+      ],
+      downstream: [],
+    };
   }
 }

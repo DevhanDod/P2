@@ -115,10 +115,11 @@
                 @for (sp of selectedPipelines; track sp.pipeline.id; let i = $index) {
                   <tr [class.aks-row]="isAksPipeline(sp.pipeline)" [class.expanded]="expandedPipelineId === sp.pipeline.id">
                     <td class="col-order"><span class="order-num">{{ sp.order }}</span></td>
-                    <td>
+                    <td class="clickable-cell" (click)="openPipelineDetail(sp)">
                       <div class="table-pipeline-info">
                         <span class="material-symbols-outlined table-icon">terminal</span>
                         <div><span class="table-pipeline-name">{{ sp.pipeline.name }}</span><span class="table-pipeline-desc">{{ sp.pipeline.description }}</span></div>
+                        <span class="material-symbols-outlined open-detail-icon">open_in_new</span>
                       </div>
                     </td>
                     <td class="col-url">
@@ -459,6 +460,167 @@
           <span class="material-symbols-outlined">verified_user</span>
           Confirm Delete
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Pipeline Detail Modal -->
+@if (showPipelineDetailModal && pipelineDetailData) {
+  <div class="modal-overlay" (click)="closePipelineDetail()">
+    <div class="modal pipeline-detail-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header pd-header">
+        <div class="pd-header-left">
+          <span class="material-symbols-outlined pd-header-icon">terminal</span>
+          <div class="pd-header-info">
+            <h2>{{ pipelineDetailData.pipelineName }}</h2>
+            <div class="pd-meta">
+              <span class="pd-status-badge {{ pipelineDetailData.status }}">
+                <span class="material-symbols-outlined" [class.spinning]="pipelineDetailData.status === 'running'">{{ getJobStatusIcon(pipelineDetailData.status) }}</span>
+                {{ pipelineDetailData.status === 'running' ? 'Running' : (pipelineDetailData.status === 'passed' ? 'Passed' : (pipelineDetailData.status === 'pending' ? 'Pending' : 'Failed')) }}
+              </span>
+              @if (pipelineDetailData.pipelineUrl) {
+                <a class="pd-link" [href]="pipelineDetailData.pipelineUrl" target="_blank">
+                  <span class="material-symbols-outlined">open_in_new</span>
+                  {{ pipelineDetailData.pipelineUrl }}
+                </a>
+              } @else {
+                <span class="pd-no-link">No pipeline URL yet</span>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="pd-header-actions">
+          <button class="pd-payload-toggle" [class.active]="showDetailPayload" (click)="toggleDetailPayload()">
+            <span class="material-symbols-outlined">data_object</span>
+            Payload
+            <span class="material-symbols-outlined pd-chevron">{{ showDetailPayload ? 'expand_less' : 'expand_more' }}</span>
+          </button>
+          <button class="modal-close" (click)="closePipelineDetail()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sliding Payload Panel -->
+      @if (showDetailPayload && detailPipeline) {
+        <div class="pd-payload-slider">
+          <div class="pd-payload-content">
+            <div class="payload-line"><span class="payload-key">token</span><span class="payload-sep">:</span>@if (detailPipeline.pipeline.token) { <span class="payload-value">{{ detailPipeline.pipeline.token }}</span> } @else { <span class="payload-value empty">Not set</span> }</div>
+            <div class="payload-line"><span class="payload-key">ref</span><span class="payload-sep">:</span><span class="payload-value">{{ detailPipeline.pipeline.ref }}</span></div>
+            @for (v of detailPipeline.pipeline.variables; track v.key + $index) {
+              <div class="payload-line" [class.commented]="v.commented">@if (v.commented) { <span class="payload-comment">//</span> }<span class="payload-key">variables[{{ v.key }}]</span><span class="payload-sep">:</span><span class="payload-value">{{ v.value }}</span></div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Pipeline Stages & Jobs Body -->
+      <div class="pd-body">
+        <!-- Main Pipeline Stages (Left) -->
+        <div class="pd-stages-col">
+          <div class="pd-col-title">
+            <span class="material-symbols-outlined">account_tree</span>
+            Stages &amp; Jobs
+          </div>
+          @for (stage of pipelineDetailData.stages; track stage.name) {
+            <div class="pd-stage">
+              <div class="pd-stage-header">
+                <span class="material-symbols-outlined pd-stage-icon {{ getStageStatus(stage) }}">{{ getJobStatusIcon(getStageStatus(stage)) }}</span>
+                <span class="pd-stage-name">{{ stage.name }}</span>
+              </div>
+              <div class="pd-jobs">
+                @for (job of stage.jobs; track job.id) {
+                  <button class="pd-job" [class.active]="selectedJob?.id === job.id" [class.downstream-trigger]="job.isDownstreamTrigger" (click)="selectJob(job)">
+                    <span class="material-symbols-outlined pd-job-icon {{ job.status }}" [class.spinning]="job.status === 'running'">{{ getJobStatusIcon(job.status) }}</span>
+                    <span class="pd-job-name">{{ job.name }}</span>
+                    <span class="pd-job-duration">{{ job.duration }}</span>
+                    @if (job.isDownstreamTrigger) {
+                      <span class="pd-downstream-arrow">
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                      </span>
+                    }
+                  </button>
+                  @if (job.isDownstreamTrigger && job.downstreamId) {
+                    <div class="pd-connection-line">
+                      <div class="pd-connection-dot"></div>
+                      <div class="pd-connection-dash"></div>
+                      <span class="material-symbols-outlined pd-connection-arrow">arrow_forward</span>
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Downstream Pipeline (Middle) -->
+        @if (hasDownstream()) {
+          <div class="pd-downstream-col">
+            @for (ds of pipelineDetailData.downstream; track ds.id) {
+              <div class="pd-downstream-block">
+                <div class="pd-col-title downstream">
+                  <span class="material-symbols-outlined">subdirectory_arrow_right</span>
+                  <div>
+                    <span class="pd-ds-name">{{ ds.name }}</span>
+                    <span class="pd-ds-badge {{ ds.status }}">{{ ds.status }}</span>
+                  </div>
+                </div>
+                @if (ds.url) {
+                  <a class="pd-ds-link" [href]="ds.url" target="_blank">
+                    <span class="material-symbols-outlined">open_in_new</span>
+                    {{ ds.url }}
+                  </a>
+                }
+                @for (stage of ds.stages; track stage.name) {
+                  <div class="pd-stage">
+                    <div class="pd-stage-header">
+                      <span class="material-symbols-outlined pd-stage-icon {{ getStageStatus(stage) }}">{{ getJobStatusIcon(getStageStatus(stage)) }}</span>
+                      <span class="pd-stage-name">{{ stage.name }}</span>
+                    </div>
+                    <div class="pd-jobs">
+                      @for (job of stage.jobs; track job.id) {
+                        <button class="pd-job" [class.active]="selectedJob?.id === job.id" (click)="selectJob(job)">
+                          <span class="material-symbols-outlined pd-job-icon {{ job.status }}" [class.spinning]="job.status === 'running'">{{ getJobStatusIcon(job.status) }}</span>
+                          <span class="pd-job-name">{{ job.name }}</span>
+                          <span class="pd-job-duration">{{ job.duration }}</span>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Job Log Viewer (Right) -->
+        <div class="pd-log-col" [class.expanded]="!hasDownstream()">
+          @if (selectedJob) {
+            <div class="pd-log-header">
+              <span class="material-symbols-outlined pd-log-icon {{ selectedJob.status }}">{{ getJobStatusIcon(selectedJob.status) }}</span>
+              <div>
+                <span class="pd-log-title">{{ selectedJob.name }}</span>
+                <span class="pd-log-meta">{{ selectedJob.duration }} &middot; {{ selectedJob.status }}</span>
+              </div>
+            </div>
+            <div class="pd-log-content">
+              @if (selectedJob.log) {
+                <pre class="pd-log-pre">{{ selectedJob.log }}</pre>
+              } @else {
+                <div class="pd-log-empty">
+                  <span class="material-symbols-outlined">hourglass_empty</span>
+                  <span>Job has not started yet</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="pd-log-placeholder">
+              <span class="material-symbols-outlined">article</span>
+              <span>Click a job to view its log</span>
+            </div>
+          }
+        </div>
       </div>
     </div>
   </div>

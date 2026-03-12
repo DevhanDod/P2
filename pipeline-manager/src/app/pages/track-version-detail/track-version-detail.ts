@@ -34,6 +34,40 @@ export interface HealthCheckRun {
   items: HealthCheckItem[];
 }
 
+export type JobStatus = 'passed' | 'failed' | 'running' | 'pending' | 'skipped';
+
+export interface PipelineJob {
+  id: string;
+  name: string;
+  status: JobStatus;
+  duration: string;
+  isDownstreamTrigger?: boolean;
+  downstreamId?: string;
+  log: string;
+}
+
+export interface PipelineStage {
+  name: string;
+  jobs: PipelineJob[];
+}
+
+export interface DownstreamPipeline {
+  id: string;
+  name: string;
+  url: string;
+  status: JobStatus;
+  triggeredByJobId: string;
+  stages: PipelineStage[];
+}
+
+export interface PipelineDetailData {
+  pipelineUrl: string;
+  pipelineName: string;
+  status: JobStatus;
+  stages: PipelineStage[];
+  downstream: DownstreamPipeline[];
+}
+
 @Component({
   selector: 'app-track-version-detail',
   imports: [FormsModule, DatePipe, TitleCasePipe],
@@ -67,6 +101,12 @@ export class TrackVersionDetail implements OnInit {
   securityPin = '';
   pinError = false;
   deleteMode: 'selected' | 'all' = 'selected';
+
+  showPipelineDetailModal = false;
+  pipelineDetailData: PipelineDetailData | null = null;
+  selectedJob: PipelineJob | null = null;
+  showDetailPayload = false;
+  detailPipeline: SelectedPipeline | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -603,5 +643,194 @@ export class TrackVersionDetail implements OnInit {
     }
 
     this.securityPin = '';
+  }
+
+  openPipelineDetail(sp: SelectedPipeline) {
+    this.detailPipeline = sp;
+    this.pipelineDetailData = this.generateMockPipelineDetail(sp);
+    this.selectedJob = null;
+    this.showDetailPayload = false;
+    this.showPipelineDetailModal = true;
+  }
+
+  closePipelineDetail() {
+    this.showPipelineDetailModal = false;
+    this.pipelineDetailData = null;
+    this.selectedJob = null;
+    this.detailPipeline = null;
+  }
+
+  toggleDetailPayload() {
+    this.showDetailPayload = !this.showDetailPayload;
+  }
+
+  selectJob(job: PipelineJob) {
+    this.selectedJob = this.selectedJob?.id === job.id ? null : job;
+  }
+
+  getJobStatusIcon(status: JobStatus): string {
+    switch (status) {
+      case 'passed': return 'check_circle';
+      case 'failed': return 'cancel';
+      case 'running': return 'play_circle';
+      case 'pending': return 'schedule';
+      case 'skipped': return 'skip_next';
+    }
+  }
+
+  getStageStatus(stage: PipelineStage): JobStatus {
+    if (stage.jobs.some(j => j.status === 'failed')) return 'failed';
+    if (stage.jobs.some(j => j.status === 'running')) return 'running';
+    if (stage.jobs.every(j => j.status === 'passed')) return 'passed';
+    if (stage.jobs.some(j => j.status === 'pending')) return 'pending';
+    return 'passed';
+  }
+
+  getDownstreamForJob(jobId: string): DownstreamPipeline | undefined {
+    return this.pipelineDetailData?.downstream.find(d => d.triggeredByJobId === jobId);
+  }
+
+  hasDownstream(): boolean {
+    return (this.pipelineDetailData?.downstream.length ?? 0) > 0;
+  }
+
+  private generateMockPipelineDetail(sp: SelectedPipeline): PipelineDetailData {
+    if (sp.pipeline.id === 'cld_aks' && sp.triggerStatus === 'triggered') {
+      return this.generateAksDetail(sp);
+    }
+    if (sp.triggerStatus === 'triggering') {
+      return this.generateRunningDetail(sp);
+    }
+    return this.generatePendingDetail(sp);
+  }
+
+  private generateAksDetail(sp: SelectedPipeline): PipelineDetailData {
+    return {
+      pipelineUrl: sp.pipelineUrl,
+      pipelineName: sp.pipeline.name,
+      status: 'passed',
+      stages: [
+        {
+          name: 'validate', jobs: [
+            { id: 'j1', name: 'lint', status: 'passed', duration: '0:12', log: '$ hadolint Dockerfile\n$ yamllint .gitlab-ci.yml\nAll files passed linting checks.\n\nJob succeeded' },
+            { id: 'j2', name: 'validate_config', status: 'passed', duration: '0:05', log: '$ terraform validate\nSuccess! The configuration is valid.\n\n$ tflint --init\n$ tflint\n0 issue(s) found.\n\nJob succeeded' },
+          ]
+        },
+        {
+          name: 'plan', jobs: [
+            { id: 'j3', name: 'terraform_plan', status: 'passed', duration: '0:34', log: '$ terraform init\nInitializing the backend...\nInitializing provider plugins...\n- Finding hashicorp/azurerm v3.75.0...\n- Installing hashicorp/azurerm v3.75.0...\n\nTerraform has been successfully initialized!\n\n$ terraform plan -out=tfplan\nPlan: 12 to add, 0 to change, 0 to destroy.\n\nSaved plan to: tfplan\n\nJob succeeded' },
+          ]
+        },
+        {
+          name: 'apply', jobs: [
+            { id: 'j4', name: 'terraform_apply', status: 'passed', duration: '3:12', isDownstreamTrigger: true, downstreamId: 'ds1', log: '$ terraform apply tfplan\nazurerm_resource_group.aks_rg: Creating...\nazurerm_resource_group.aks_rg: Creation complete [id=/subscriptions/.../rg]\nazurerm_kubernetes_cluster.aks: Creating...\nazurerm_kubernetes_cluster.aks: Still creating... [10s]\nazurerm_kubernetes_cluster.aks: Still creating... [2m]\nazurerm_kubernetes_cluster.aks: Creation complete after 3m12s\n\nApply complete! Resources: 12 added, 0 changed, 0 destroyed.\n\nTriggering downstream pipeline: cld_aks_deploy...\nDownstream pipeline started: #92451\n\nJob succeeded' },
+          ]
+        },
+        {
+          name: 'verify', jobs: [
+            { id: 'j5', name: 'health_check', status: 'passed', duration: '0:10', log: '$ kubectl get nodes\nNAME                       STATUS   ROLES   AGE   VERSION\naks-nodepool1-12345-vmss   Ready    agent   5m    v1.28.5\naks-nodepool1-12345-vmss   Ready    agent   5m    v1.28.5\n\n$ kubectl get pods -A | grep -v Running\nAll pods are in Running state.\n\nJob succeeded' },
+            { id: 'j6', name: 'smoke_test', status: 'passed', duration: '0:08', log: '$ curl -s https://c3lo-aks.japaneast.cloudapp.azure.com/healthz\n{"status":"ok","version":"1.0.0"}\n\n$ curl -s https://c3lo-aks.japaneast.cloudapp.azure.com/ready\n{"ready":true}\n\nAll smoke tests passed.\n\nJob succeeded' },
+          ]
+        },
+      ],
+      downstream: [
+        {
+          id: 'ds1',
+          name: 'cld_aks_deploy',
+          url: 'https://gitlab.com/api/v4/projects/12345/pipelines/92451',
+          status: 'passed',
+          triggeredByJobId: 'j4',
+          stages: [
+            {
+              name: 'init', jobs: [
+                { id: 'ds1-j1', name: 'setup_environment', status: 'passed', duration: '0:08', log: '$ az login --service-principal\nLogged in successfully.\n\n$ az aks get-credentials --resource-group c3lo-aks-rg --name c3lo-aks\nMerged "c3lo-aks" as current context.\n\n$ helm repo update\nUpdate Complete.\n\nJob succeeded' },
+              ]
+            },
+            {
+              name: 'deploy', jobs: [
+                { id: 'ds1-j2', name: 'deploy_aks_cluster', status: 'passed', duration: '1:45', log: '$ helm upgrade --install ifs-cloud ./charts/ifs-cloud \\\n  --namespace ifs-system \\\n  --set image.tag=24.1.0 \\\n  --set replicaCount=3\n\nRelease "ifs-cloud" has been upgraded.\nNAME: ifs-cloud\nSTATUS: deployed\nREVISION: 2\n\n$ kubectl rollout status deployment/ifs-cloud -n ifs-system\ndeployment "ifs-cloud" successfully rolled out\n\nJob succeeded' },
+                { id: 'ds1-j3', name: 'configure_networking', status: 'passed', duration: '0:22', log: '$ kubectl apply -f networking/ingress.yml\ningress.networking.k8s.io/ifs-ingress configured\n\n$ kubectl apply -f networking/network-policy.yml\nnetworkpolicy.networking.k8s.io/ifs-netpol configured\n\n$ kubectl get ingress -n ifs-system\nNAME          CLASS   HOSTS                 ADDRESS         PORTS\nifs-ingress   nginx   c3lo.ifs.cloud.com    20.78.45.123    80, 443\n\nJob succeeded' },
+              ]
+            },
+            {
+              name: 'test', jobs: [
+                { id: 'ds1-j4', name: 'integration_test', status: 'passed', duration: '0:15', log: '$ npm run test:integration\n\n  PASS  tests/api.test.ts\n    ✓ GET /api/health returns 200 (45ms)\n    ✓ GET /api/version returns correct version (32ms)\n    ✓ POST /api/validate accepts valid payload (120ms)\n\n  PASS  tests/db.test.ts\n    ✓ Database connection is established (89ms)\n    ✓ Migrations are up to date (156ms)\n\nTest Suites: 2 passed, 2 total\nTests:       5 passed, 5 total\n\nJob succeeded' },
+              ]
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private generateRunningDetail(sp: SelectedPipeline): PipelineDetailData {
+    return {
+      pipelineUrl: sp.pipelineUrl || '',
+      pipelineName: sp.pipeline.name,
+      status: 'running',
+      stages: [
+        {
+          name: 'prepare', jobs: [
+            { id: 'r1', name: 'fetch_artifacts', status: 'passed', duration: '0:15', log: '$ curl -O https://artifacts.ifs.com/latest/manifest.json\n  % Total    Received  Time\n  100  2048  100  2048  0:00:15\n\nArtifacts downloaded successfully.\n\nJob succeeded' },
+            { id: 'r2', name: 'validate_manifest', status: 'passed', duration: '0:08', log: '$ python validate.py manifest.json\nManifest schema: valid\nRequired fields: present\nVersion check: 24.1.0 (compatible)\n\nJob succeeded' },
+          ]
+        },
+        {
+          name: 'build', jobs: [
+            { id: 'r3', name: 'build_images', status: 'running', duration: '1:22', log: '$ docker build -t ifs-cloud:24.1.0 .\nStep 1/12 : FROM node:18-alpine\n ---> abc123\nStep 2/12 : WORKDIR /app\n ---> Using cache\nStep 7/12 : RUN npm ci --production\n ---> Running...' },
+          ]
+        },
+        {
+          name: 'deploy', jobs: [
+            { id: 'r4', name: 'deploy_to_env', status: 'pending', duration: '--', log: '' },
+          ]
+        },
+        {
+          name: 'notify', jobs: [
+            { id: 'r5', name: 'send_notification', status: 'pending', duration: '--', isDownstreamTrigger: true, downstreamId: 'ds-r', log: '' },
+          ]
+        },
+      ],
+      downstream: [
+        {
+          id: 'ds-r',
+          name: `${sp.pipeline.name}_post`,
+          url: '',
+          status: 'pending',
+          triggeredByJobId: 'r5',
+          stages: [
+            { name: 'notify', jobs: [{ id: 'ds-r1', name: 'slack_notify', status: 'pending', duration: '--', log: '' }] },
+            { name: 'update', jobs: [{ id: 'ds-r2', name: 'update_status', status: 'pending', duration: '--', log: '' }] },
+          ],
+        },
+      ],
+    };
+  }
+
+  private generatePendingDetail(sp: SelectedPipeline): PipelineDetailData {
+    return {
+      pipelineUrl: '',
+      pipelineName: sp.pipeline.name,
+      status: 'pending',
+      stages: [
+        {
+          name: 'validate', jobs: [
+            { id: 'p1', name: 'check_source', status: 'pending', duration: '--', log: '' },
+            { id: 'p2', name: 'check_target', status: 'pending', duration: '--', log: '' },
+          ]
+        },
+        {
+          name: 'execute', jobs: [
+            { id: 'p3', name: `run_${sp.pipeline.name}`, status: 'pending', duration: '--', log: '' },
+          ]
+        },
+        {
+          name: 'verify', jobs: [
+            { id: 'p4', name: 'run_tests', status: 'pending', duration: '--', log: '' },
+          ]
+        },
+      ],
+      downstream: [],
+    };
   }
 }
