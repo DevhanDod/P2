@@ -16,6 +16,10 @@
             </div>
 
             <div class="status-section">
+              <button class="header-share-btn" (click)="openShareModal()">
+                <span class="material-symbols-outlined">share</span>
+                Share
+              </button>
               <div class="status-badge" [class]="getStatusClass()">
                 <span class="status-dot"></span>
                 <span class="status-text">Status: {{ getStatusLabel() }}</span>
@@ -732,6 +736,101 @@
           <span class="material-symbols-outlined">verified_user</span>
           Confirm Delete
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Share Resource Modal -->
+@if (showShareModal && resource) {
+  <div class="modal-overlay" (click)="closeShareModal()">
+    <div class="modal share-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="share-modal-title">
+          <span class="material-symbols-outlined share-modal-icon">share</span>
+          <div>
+            <h2>Share Resource</h2>
+            <p class="share-modal-sub">{{ resource.customerCode }}</p>
+          </div>
+        </div>
+        <button class="modal-close" (click)="closeShareModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body share-modal-body">
+        <div class="share-section">
+          <div class="share-section-label">
+            <span class="material-symbols-outlined">link</span>
+            Share Link
+          </div>
+          <div class="share-link-row">
+            <div class="share-link-input">
+              <span class="material-symbols-outlined share-link-icon">public</span>
+              <input type="text" [value]="shareLink" readonly class="share-link-field" />
+            </div>
+            <button class="share-copy-btn" [class.copied]="linkCopied" (click)="copyShareLink()">
+              <span class="material-symbols-outlined">{{ linkCopied ? 'check' : 'content_copy' }}</span>
+              {{ linkCopied ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="share-section">
+          <div class="share-section-label">
+            <span class="material-symbols-outlined">person_add</span>
+            Add People
+          </div>
+          <div class="share-add-row">
+            <input
+              type="email"
+              [(ngModel)]="newMemberEmail"
+              placeholder="Enter email address"
+              class="share-email-input"
+              (keydown.enter)="addMember()"
+            />
+            <select [(ngModel)]="newMemberRole" class="share-role-select">
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+            </select>
+            <button class="share-add-btn" (click)="addMember()" [disabled]="!newMemberEmail.trim()">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </div>
+        </div>
+
+        @if (sharedMembers.length > 0) {
+          <div class="share-section">
+            <div class="share-section-label">
+              <span class="material-symbols-outlined">group</span>
+              Shared With ({{ sharedMembers.length }})
+            </div>
+            <div class="share-members-list">
+              @for (member of sharedMembers; track member.email) {
+                <div class="share-member">
+                  <div class="share-member-avatar">
+                    {{ member.email[0].toUpperCase() }}
+                  </div>
+                  <div class="share-member-info">
+                    <span class="share-member-email">{{ member.email }}</span>
+                    <span class="share-member-date">Added {{ member.addedAt | date:'shortDate' }}</span>
+                  </div>
+                  <select class="share-member-role" [ngModel]="member.role" (ngModelChange)="updateMemberRole(member.email, $event)">
+                    <option value="viewer">Viewer</option>
+                    <option value="editor">Editor</option>
+                  </select>
+                  <button class="share-member-remove" (click)="removeMember(member.email)" title="Remove">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeShareModal()">Done</button>
       </div>
     </div>
   </div>

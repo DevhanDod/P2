@@ -55,11 +55,18 @@ export interface Resource {
   enabledFeatures: ResourceFeature[];
 }
 
+export interface SharedMember {
+  email: string;
+  role: 'viewer' | 'editor';
+  addedAt: Date;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class ResourceService {
   private resources: Resource[] = [];
+  private sharedMembersMap: Map<string, SharedMember[]> = new Map();
 
   getResources(): Resource[] {
     return this.resources;
@@ -123,5 +130,17 @@ export class ResourceService {
       case 'stopped': return 'Stopped';
       default: return 'Unknown';
     }
+  }
+
+  getSharedMembers(resourceId: string): SharedMember[] {
+    return [...(this.sharedMembersMap.get(resourceId) || [])];
+  }
+
+  setSharedMembers(resourceId: string, members: SharedMember[]) {
+    this.sharedMembersMap.set(resourceId, [...members]);
+  }
+
+  getSharedCount(resourceId: string): number {
+    return this.sharedMembersMap.get(resourceId)?.length || 0;
   }
 }

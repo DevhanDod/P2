@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, TitleCasePipe } from '@angular/common';
-import { ResourceService, Resource, ResourceStatus, CommonVariables, ResourceFeature, AVAILABLE_FEATURES } from '../../services/resource';
+import { ResourceService, Resource, ResourceStatus, CommonVariables, ResourceFeature, AVAILABLE_FEATURES, SharedMember } from '../../services/resource';
 import { PayloadService, PipelinePayload, PayloadVariable } from '../../services/payload';
 
 export type ScheduleMode = 'time' | 'chain';
@@ -105,6 +105,13 @@ export class ResourceDetail implements OnInit {
   selectedJob: PipelineJob | null = null;
   showDetailPayload = false;
   detailPipeline: SelectedPipeline | null = null;
+
+  showShareModal = false;
+  shareLink = '';
+  linkCopied = false;
+  newMemberEmail = '';
+  newMemberRole: 'viewer' | 'editor' = 'viewer';
+  sharedMembers: SharedMember[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -603,6 +610,56 @@ export class ResourceDetail implements OnInit {
     this.pipelineDetailData = null;
     this.selectedJob = null;
     this.detailPipeline = null;
+  }
+
+  openShareModal() {
+    if (!this.resource) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.example.com';
+    this.shareLink = `${origin}/resources/${this.resource.id}`;
+    this.linkCopied = false;
+    this.newMemberEmail = '';
+    this.newMemberRole = 'viewer';
+    this.sharedMembers = this.resourceService.getSharedMembers(this.resource.id);
+    this.showShareModal = true;
+  }
+
+  closeShareModal() {
+    this.showShareModal = false;
+  }
+
+  copyShareLink() {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(this.shareLink);
+    }
+    this.linkCopied = true;
+    setTimeout(() => (this.linkCopied = false), 2000);
+  }
+
+  addMember() {
+    if (!this.newMemberEmail.trim() || !this.resource) return;
+    if (this.sharedMembers.some(m => m.email === this.newMemberEmail.trim())) return;
+    const member: SharedMember = {
+      email: this.newMemberEmail.trim(),
+      role: this.newMemberRole,
+      addedAt: new Date(),
+    };
+    this.sharedMembers.push(member);
+    this.resourceService.setSharedMembers(this.resource.id, this.sharedMembers);
+    this.newMemberEmail = '';
+  }
+
+  removeMember(email: string) {
+    if (!this.resource) return;
+    this.sharedMembers = this.sharedMembers.filter(m => m.email !== email);
+    this.resourceService.setSharedMembers(this.resource.id, this.sharedMembers);
+  }
+
+  updateMemberRole(email: string, role: 'viewer' | 'editor') {
+    const member = this.sharedMembers.find(m => m.email === email);
+    if (member && this.resource) {
+      member.role = role;
+      this.resourceService.setSharedMembers(this.resource.id, this.sharedMembers);
+    }
   }
 
   toggleDetailPayload() {

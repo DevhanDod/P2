@@ -29,6 +29,32 @@
   .material-symbols-outlined { font-size: 20px; }
 }
 
+// --- Header Share Button ---
+
+.header-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s;
+
+  .material-symbols-outlined { font-size: 16px; }
+
+  &:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+  }
+}
+
 // --- Status ---
 
 .status-section { display: flex; align-items: center; gap: 8px; }
@@ -1253,6 +1279,216 @@
 }
 
 .pin-error { font-size: 12px; color: #ef4444; font-weight: 600; margin-top: 4px; }
+
+// --- Share Modal ---
+
+.share-modal { width: 520px; }
+
+.share-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.share-modal-icon {
+  font-size: 24px;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.share-modal-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.share-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.share-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  .material-symbols-outlined { font-size: 16px; }
+}
+
+.share-link-row { display: flex; gap: 8px; }
+
+.share-link-input {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+
+.share-link-icon { font-size: 16px; color: var(--text-muted); flex-shrink: 0; }
+
+.share-link-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  color: var(--text-primary);
+  padding: 10px 0;
+  outline: none;
+  min-width: 0;
+}
+
+.share-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  .material-symbols-outlined { font-size: 16px; }
+  &:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+  &.copied { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #10b981; }
+}
+
+.share-add-row { display: flex; gap: 8px; }
+
+.share-email-input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 0;
+  &:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08); }
+  &::placeholder { color: var(--text-muted); }
+}
+
+.share-role-select {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:focus { border-color: #3b82f6; }
+}
+
+.share-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  .material-symbols-outlined { font-size: 20px; }
+  &:hover:not(:disabled) { background: #2563eb; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.share-members-list { display: flex; flex-direction: column; gap: 6px; }
+
+.share-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  transition: background 0.12s;
+  &:hover { background: var(--bg-tertiary); }
+}
+
+.share-member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.share-member-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.share-member-email { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-member-date { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+.share-member-role {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:focus { border-color: #3b82f6; }
+}
+
+.share-member-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  .material-symbols-outlined { font-size: 16px; }
+  &:hover { background: rgba(239, 68, 68, 0.08); color: #ef4444; }
+}
 
 // --- Clickable Pipeline Cell ---
 
